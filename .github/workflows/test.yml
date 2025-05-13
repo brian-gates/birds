@@ -51,3 +51,4 @@ jobs:
         run: |
           bundle exec rake db:migrate
           bundle exec rake test
+# This is a small change to trigger the workflow
