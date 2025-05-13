@@ -2,7 +2,7 @@
 
 _This project addresses the challenge defined in [PROMPT.md](docs/PROMPT.md)_
 
-[![Test Suite](https://github.com/USERNAME/birds/actions/workflows/test.yml/badge.svg)](https://github.com/USERNAME/birds/actions/workflows/test.yml)
+[![Test Suite](https://github.com/USERNAME/birds/actions/workflows/test.yml/badge.svg?branch=add-github-actions)](https://github.com/USERNAME/birds/actions/workflows/test.yml)
 
 ## Overview
 
