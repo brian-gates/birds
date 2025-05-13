@@ -1,0 +1,13 @@
+.git
+.gitignore
+.DS_Store
+.env
+postgres_data
+.rspec
+spec
+README.md
+docs/
+tmp/
+log/
+*.md
+!README.md 
