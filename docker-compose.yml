@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   api:
     build: .
@@ -9,7 +7,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@db/tree_node_api_development
+      - DATABASE_URL=postgres://postgres:postgres@db/birds
     volumes:
       - .:/app
       - gem_cache:/usr/local/bundle
@@ -30,7 +28,7 @@ services:
     environment:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
-      - POSTGRES_DB=postgres
+      - POSTGRES_DB=birds
       - POSTGRES_HOST_AUTH_METHOD=trust
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]

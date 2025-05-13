@@ -3,7 +3,7 @@ require 'sinatra/json'
 require 'sequel'
 require 'dotenv/load'
 
-DB = Sequel.connect(ENV['DATABASE_URL'] || 'postgres://localhost/tree_node_api_development')
+DB = Sequel.connect(ENV['DATABASE_URL'] || 'postgres://localhost/birds')
 
 # Require models
 require_relative 'models/node'

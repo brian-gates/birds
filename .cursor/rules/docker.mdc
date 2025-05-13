@@ -1,0 +1,6 @@
+---
+description: "docker compose", not "docker-compose"
+globs: 
+alwaysApply: false
+---
+use "docker compose", not "docker-compose

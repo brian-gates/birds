@@ -39,8 +39,8 @@ bundle install
 2. Create the databases:
 
 ```
-createdb tree_node_api_development
-createdb tree_node_api_test
+createdb birds
+createdb birds_test
 ```
 
 3. Run migrations and seed data:
