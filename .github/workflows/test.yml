@@ -1,0 +1,54 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: birds_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "2.6"
+          bundler-cache: true # runs 'bundle install' and caches gems automatically
+
+      - name: Create dummy data file
+        run: |
+          mkdir -p data
+          echo "id,parent_id" > data/nodes.csv
+          echo "130," >> data/nodes.csv
+          echo "125,130" >> data/nodes.csv
+          echo "2820230,125" >> data/nodes.csv
+          echo "4430546,125" >> data/nodes.csv
+          echo "5497637,4430546" >> data/nodes.csv
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/birds_test
+          RACK_ENV: test
+        run: |
+          bundle exec rake db:migrate
+          bundle exec rake test
+# This is a small change to trigger the workflow

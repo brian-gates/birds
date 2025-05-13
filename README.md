@@ -2,6 +2,8 @@
 
 _This project addresses the challenge defined in [PROMPT.md](docs/PROMPT.md)_
 
+[![Test Suite](https://github.com/brian-gates/birds/actions/workflows/test.yml/badge.svg?branch=add-github-actions)](https://github.com/brian-gates/birds/actions/workflows/test.yml)
+
 ## Overview
 
 This project implements a scalable API for working with tree-structured data using PostgreSQL and Ruby (Sinatra). The solution focuses on optimizing for future growth to potentially billions of nodes while maintaining performance.
@@ -130,6 +132,8 @@ Run tests with:
 ```bash
 rake test
 ```
+
+The test suite automatically runs on GitHub Actions for all pull requests and pushes to the main branch, ensuring that code changes meet the requirements and don't introduce regressions.
 
 ## Code Organization
 
