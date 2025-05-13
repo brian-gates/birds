@@ -18,31 +18,16 @@ class TreeNodeAPI < Sinatra::Base
     json result
   end
   
-  # Birds endpoint with pagination
+  # Birds endpoint - simplified to match the requirements in PROMPT.md
   get '/birds' do
     node_ids = params[:node_ids].to_s.split(',').map(&:to_i)
-    limit = (params[:limit] || 1000).to_i
-    offset = (params[:offset] || 0).to_i
-    
-    # Cap the limit to prevent excessive memory usage
-    limit = [limit, 10000].min
     
     begin
-      # Use a shorter timeout for the birds endpoint
-      with_timeout(10) do
-        bird_ids = Bird.find_all_in_subtrees(node_ids, limit, offset)
-        total_count = Bird.count_in_subtrees(node_ids)
-        
-        json({
-          bird_ids: bird_ids, 
-          total_count: total_count,
-          limit: limit,
-          offset: offset
-        })
-      end
+      bird_ids = Bird.find_all_in_subtrees(node_ids)
+      json({ bird_ids: bird_ids })
     rescue Sequel::DatabaseError => e
       status 500
-      json error: "Database error: #{e.message}. Try with different node_ids or a smaller limit."
+      json error: "Database error: #{e.message}. Try with different node_ids."
     end
   end
 end 

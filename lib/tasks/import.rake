@@ -1,11 +1,6 @@
 require 'csv'
 
 namespace :db do
-  desc 'Seed the database with sample data'
-  task :seed do
-    require_relative '../../db/seed'
-  end
-  
   desc 'Import node data from CSV or use sample data'
   task :import_csv do
     if !File.exist?('./data/nodes.csv')

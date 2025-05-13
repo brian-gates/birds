@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
-gem 'sinatra'
-gem 'sinatra-contrib'
+gem 'sinatra', '~> 2.2.3'
+gem 'sinatra-contrib', '~> 2.2.3'
 gem 'pg'
 gem 'sequel'
 gem 'puma'
@@ -11,6 +11,6 @@ group :development, :test do
   gem 'rspec'
   gem 'rack-test'
   gem 'database_cleaner-sequel'
-  gem 'dotenv'
+  gem 'dotenv', '~> 2.8.1'
 end 
 gem "concurrent-ruby", "~> 1.3"

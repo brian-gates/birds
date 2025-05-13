@@ -1,36 +1,17 @@
 # Birds Challenge
 
+_This project addresses the challenge defined in [PROMPT.md](docs/PROMPT.md)_
+
 ## Overview
 
 This project implements a scalable API for working with tree-structured data using PostgreSQL and Ruby (Sinatra). The solution focuses on optimizing for future growth to potentially billions of nodes while maintaining performance.
 
 ## API Endpoints
 
-### 1. Find Common Ancestors
+The API implements all requirements specified in the [PROMPT.md](docs/PROMPT.md):
 
-```
-GET /nodes/:node_a_id/common_ancestors/:node_b_id
-```
-
-Returns the `root_id`, `lowest_common_ancestor`, and `depth` of the lowest common ancestor between two nodes.
-
-Example responses:
-
-- `/nodes/5497637/common_ancestors/2820230` → `{root_id: 130, lowest_common_ancestor: 125, depth: 2}`
-- `/nodes/5497637/common_ancestors/130` → `{root_id: 130, lowest_common_ancestor: 130, depth: 1}`
-- `/nodes/9/common_ancestors/4430546` → `{root_id: null, lowest_common_ancestor: null, depth: null}`
-
-### 2. Find Birds in Subtrees
-
-```
-GET /birds?node_ids=1,2,3
-```
-
-Returns IDs of birds that belong to the specified nodes or any of their descendants.
-
-Example:
-
-- `/birds?node_ids=125,130` → `{bird_ids: [1, 2, 3, 4, 5]}`
+1. Common Ancestors endpoint to find lowest common ancestors between nodes
+2. Birds endpoint to find birds in specified subtrees
 
 ## Setup Instructions
 
@@ -92,7 +73,9 @@ For detailed comparison, see [Ruby Framework Comparison](docs/ruby-framework-com
    - Query parameter binding for prepared statement caching
 
 3. **Scaling Considerations**:
-   - Database connection pooling
+   - Database connection pooling configured with 10 concurrent connections
+   - Connection validation with 30-second timeout to handle disconnects
+   - Configurable statement timeouts with fallback safety mechanisms
    - Minimal data transfer between API and database
    - Focused queries that return only necessary information
 
@@ -108,10 +91,52 @@ Key performance highlights:
 
 For complete performance metrics, testing methodology, and scaling recommendations, see the [Performance Summary](docs/performance-summary.md) document.
 
+## Task Organization
+
+The project uses rake tasks for database management, data import, and performance testing:
+
+```bash
+# Database tasks
+rake db:create      # Create database
+rake db:migrate     # Run migrations
+rake db:reset       # Reset database
+
+# Data import tasks
+rake import:csv     # Import data from CSV files
+
+# Performance testing
+rake performance:test:api      # Run API performance tests
+rake performance:test:queries  # Test database query performance
+
+# Data generation
+rake data:generate       # Generate test datasets
+rake data:large_scale    # Generate large-scale data for stress testing
+
+# Testing
+rake test               # Run all tests
+rake test:api           # Run API endpoint tests
+rake test:models        # Run model tests
+```
+
+## Testing
+
+The project includes a comprehensive test suite that validates all requirements from the prompt:
+
+- **Common ancestor endpoint tests** verify all specified scenarios
+- **Birds endpoint tests** verify finding birds across various node configurations
+
+Run tests with:
+
+```bash
+rake test
+```
+
 ## Code Organization
 
 - `app.rb` - Main Sinatra application with API endpoints
 - `models/` - Sequel models for nodes and birds
 - `db/migrations/` - Database schema and migrations
+- `lib/tasks/` - Rake tasks for database and data management
 - `docs/` - Analysis documentation and performance reports
+- `spec/` - Test suite for API endpoints and models
 - `docker-compose.yml` - Containerized development environment

@@ -44,48 +44,45 @@ class Node < Sequel::Model
       end
     end
     
-    # Use SQL to efficiently find the common ancestor
-    result = DB.fetch(<<-SQL, node_a_id, node_b_id).first
-      WITH RECURSIVE
-        ancestors_a AS (
-          SELECT id, parent_id, 1 AS depth
-          FROM nodes
-          WHERE id = ?
-          
-          UNION ALL
-          
-          SELECT n.id, n.parent_id, a.depth + 1
-          FROM nodes n
-          JOIN ancestors_a a ON n.id = a.parent_id
-        ),
-        ancestors_b AS (
-          SELECT id, parent_id, 1 AS depth
-          FROM nodes
-          WHERE id = ?
-          
-          UNION ALL
-          
-          SELECT n.id, n.parent_id, b.depth + 1
-          FROM nodes n
-          JOIN ancestors_b b ON n.id = b.parent_id
-        ),
-        common_ancestors AS (
-          SELECT a.id, a.depth
-          FROM ancestors_a a
-          JOIN ancestors_b b ON a.id = b.id
-        )
-        SELECT id, depth
-        FROM common_ancestors
-        ORDER BY depth DESC
-        LIMIT 1
-    SQL
+    # Get ancestors for both nodes
+    ancestors_a = find_ancestors(node_a_id)
+    ancestors_b = find_ancestors(node_b_id)
     
-    if result
-      root_id = find_root(result[:id])
-      { root_id: root_id, lowest_common_ancestor: result[:id], depth: result[:depth] }
-    else
-      { root_id: nil, lowest_common_ancestor: nil, depth: nil }
+    # If either node doesn't exist, return nil for all fields
+    if ancestors_a.empty? || ancestors_b.empty?
+      return { root_id: nil, lowest_common_ancestor: nil, depth: nil }
     end
+    
+    # Check if one node is a direct ancestor of the other
+    if ancestors_a.any? { |a| a[:id] == node_b_id }
+      # node_b is an ancestor of node_a
+      depth = ancestors_a.find { |a| a[:id] == node_b_id }[:depth]
+      root_id = find_root(node_b_id)
+      return { root_id: root_id, lowest_common_ancestor: node_b_id, depth: depth }
+    elsif ancestors_b.any? { |b| b[:id] == node_a_id }
+      # node_a is an ancestor of node_b
+      depth = ancestors_b.find { |b| b[:id] == node_a_id }[:depth]
+      root_id = find_root(node_a_id)
+      return { root_id: root_id, lowest_common_ancestor: node_a_id, depth: depth }
+    end
+    
+    # Find common ancestors
+    common_ancestors = ancestors_a.select { |a| ancestors_b.any? { |b| b[:id] == a[:id] } }
+    
+    # If no common ancestors, return nil for all fields
+    if common_ancestors.empty?
+      return { root_id: nil, lowest_common_ancestor: nil, depth: nil }
+    end
+    
+    # Find the lowest common ancestor (the one with the lowest depth)
+    lowest = common_ancestors.min_by { |a| a[:depth] }
+    
+    # Return result
+    {
+      root_id: find_root(lowest[:id]),
+      lowest_common_ancestor: lowest[:id],
+      depth: lowest[:depth]
+    }
   end
   
   # Calculate depth of a node (distance from root)
