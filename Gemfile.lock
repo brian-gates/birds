@@ -53,6 +53,7 @@ GEM
 
 PLATFORMS
   universal-darwin-24
+  x86_64-linux
 
 DEPENDENCIES
   concurrent-ruby (~> 1.3)
