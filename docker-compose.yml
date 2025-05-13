@@ -16,7 +16,7 @@ services:
       echo 'Waiting for PostgreSQL to be ready...'
       sleep 5 &&
       bundle exec rake db:migrate &&
-      bundle exec rake db:seed &&
+      echo 'Starting API server...' &&
       bundle exec puma -p 4567 -b tcp://0.0.0.0
       "
 

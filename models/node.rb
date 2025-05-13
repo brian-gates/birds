@@ -95,22 +95,26 @@ class Node < Sequel::Model
   end
   
   # Find all descendant nodes (including self)
-  def self.find_descendants(node_ids)
+  def self.find_descendants(node_ids, limit = 10000)
     return [] if node_ids.empty?
     
-    DB.fetch(<<-SQL, node_ids).map(:id)
+    DB.fetch(<<-SQL, node_ids, limit).map(:id)
       WITH RECURSIVE descendants AS (
-        SELECT id, parent_id
+        -- Base case: the nodes we start with
+        SELECT id, parent_id, 0 AS depth
         FROM nodes
         WHERE id IN ?
         
-        UNION
+        UNION ALL
         
-        SELECT n.id, n.parent_id
+        -- Recursive case: add children, with a depth limit to prevent infinite recursion
+        SELECT n.id, n.parent_id, d.depth + 1
         FROM nodes n
         JOIN descendants d ON n.parent_id = d.id
+        WHERE d.depth < 100  -- Add a safety depth limit
       )
       SELECT id FROM descendants
+      LIMIT ?  -- Add a limit to prevent excessive memory usage
     SQL
   end
 end 

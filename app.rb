@@ -1,9 +1,8 @@
 require 'sinatra/base'
 require 'sinatra/json'
-require 'sequel'
-require 'dotenv/load'
 
-DB = Sequel.connect(ENV['DATABASE_URL'] || 'postgres://localhost/birds')
+# Use shared database configuration
+require_relative 'db/config'
 
 # Require models
 require_relative 'models/node'
@@ -19,11 +18,31 @@ class TreeNodeAPI < Sinatra::Base
     json result
   end
   
-  # Birds endpoint
+  # Birds endpoint with pagination
   get '/birds' do
     node_ids = params[:node_ids].to_s.split(',').map(&:to_i)
+    limit = (params[:limit] || 1000).to_i
+    offset = (params[:offset] || 0).to_i
     
-    bird_ids = Bird.find_all_in_subtrees(node_ids)
-    json bird_ids: bird_ids
+    # Cap the limit to prevent excessive memory usage
+    limit = [limit, 10000].min
+    
+    begin
+      # Use a shorter timeout for the birds endpoint
+      with_timeout(10) do
+        bird_ids = Bird.find_all_in_subtrees(node_ids, limit, offset)
+        total_count = Bird.count_in_subtrees(node_ids)
+        
+        json({
+          bird_ids: bird_ids, 
+          total_count: total_count,
+          limit: limit,
+          offset: offset
+        })
+      end
+    rescue Sequel::DatabaseError => e
+      status 500
+      json error: "Database error: #{e.message}. Try with different node_ids or a smaller limit."
+    end
   end
 end 

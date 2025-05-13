@@ -13,3 +13,4 @@ group :development, :test do
   gem 'database_cleaner-sequel'
   gem 'dotenv'
 end 
+gem "concurrent-ruby", "~> 1.3"
