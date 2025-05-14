@@ -34,39 +34,31 @@ This will:
 
 ## Technical Approach
 
-### Technology Selection
+### Technology Stack
 
-I selected PostgreSQL for the database and Sinatra for the API framework.
+This project uses PostgreSQL for the database and Sinatra for the API framework.
 
-#### Database Selection: PostgreSQL vs Neo4j
+#### Database Considerations
 
-I evaluated both PostgreSQL and Neo4j for handling hierarchical tree data. While Neo4j offers native graph capabilities, PostgreSQL was selected because:
+PostgreSQL works well for handling hierarchical tree data because:
 
 1. It provides excellent performance for tree operations using recursive CTEs
-2. Has more mature Ruby ecosystem integration
+2. Has mature Ruby ecosystem integration
 3. Scales effectively to billions of nodes with proper optimization
 4. Aligns with the specific requirements in the prompt
 
-For detailed comparison, see [Neo4j vs PostgreSQL Analysis](docs/neoj4-vs-postgres.md).
+#### API Framework
 
-#### Framework Selection: Sinatra
+Sinatra provides:
 
-From the Ruby framework options (Rails, Sinatra, Cuba), I selected Sinatra because:
-
-1. It's lightweight yet powerful for creating focused APIs
-2. Offers excellent performance characteristics
-3. Provides flexibility without unnecessary overhead
-4. Integrates well with Sequel for database operations
-
-For detailed comparison, see [Ruby Framework Comparison](docs/ruby-framework-comparison.md).
+1. Lightweight implementation for focused APIs
+2. Excellent performance characteristics
+3. Flexibility without unnecessary overhead
+4. Solid integration with Sequel for database operations
 
 ### Key Implementation Features
 
 1. **Optimized Database Schema**:
-
-   - Efficient indexing on `parent_id` column
-   - Minimal schema design for storage efficiency
-   - Explicit foreign key constraints for referential integrity
 
 2. **Efficient Query Patterns**:
 
@@ -81,17 +73,15 @@ For detailed comparison, see [Ruby Framework Comparison](docs/ruby-framework-com
    - Minimal data transfer between API and database
    - Focused queries that return only necessary information
 
-## Performance Overview
+## Performance
 
-The system has been tested extensively with datasets ranging from a few nodes to 95+ million nodes with consistent sub-100ms response times across all endpoints.
+Performance testing with datasets from small to 95+ million nodes shows the solution scales effectively with PostgreSQL's recursive CTEs. Response times remain consistently fast even under concurrent load, with most queries completing in under 100ms.
 
-Key performance highlights:
+The provided rake tasks allow performance testing under various conditions:
 
-- PostgreSQL's recursive CTEs provide excellent performance for tree operations
-- Consistent response times even as the dataset grows by orders of magnitude
-- Effective under concurrent load with multiple simultaneous users
-
-For complete performance metrics, testing methodology, and scaling recommendations, see the [Performance Summary](docs/performance-summary.md) document.
+- `rake test_performance` - Benchmark API response times
+- `rake stress_test` - Test behavior under concurrent requests
+- `rake stress_capacity` - Monitor resource usage during continuous data growth
 
 ## Task Organization
 
