@@ -97,22 +97,26 @@ For complete performance metrics, testing methodology, and scaling recommendatio
 
 The project uses rake tasks for database management, data import, and performance testing:
 
-```bash
+```
 # Database tasks
 rake db:create      # Create database
 rake db:migrate     # Run migrations
 rake db:reset       # Reset database
 
 # Data import tasks
-rake import:csv     # Import data from CSV files
-
-# Performance testing
-rake performance:test:api      # Run API performance tests
-rake performance:test:queries  # Test database query performance
+rake db:import_csv  # Import data from CSV files
 
 # Data generation
-rake data:generate       # Generate test datasets
-rake data:large_scale    # Generate large-scale data for stress testing
+rake small_performance_data      # Generate small dataset (~100K nodes)
+rake generate_expanded_dataset   # Generate large dataset (10-20M nodes)
+rake generate_performance_data   # Generate large dataset for performance testing
+rake huge_performance_data       # Generate huge dataset (100M nodes)
+rake ten_million_nodes           # Generate 10 million nodes
+
+# Performance testing
+rake test_performance            # Run API performance tests with timing metrics
+rake stress_test                 # Run stress test with concurrent requests
+rake stress_capacity             # Continuously add nodes with resource monitoring
 
 # Testing
 rake test               # Run all tests
@@ -126,11 +130,19 @@ The project includes a comprehensive test suite that validates all requirements 
 
 - **Common ancestor endpoint tests** verify all specified scenarios
 - **Birds endpoint tests** verify finding birds across various node configurations
+- **Performance tests** using `rake test_performance` and `rake stress_test` for timing and concurrency metrics
 
 Run tests with:
 
-```bash
+```
 rake test
+```
+
+Run performance tests with:
+
+```
+rake test_performance
+rake stress_test
 ```
 
 The test suite automatically runs on GitHub Actions for all pull requests and pushes to the main branch, ensuring that code changes meet the requirements and don't introduce regressions.

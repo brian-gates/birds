@@ -162,149 +162,251 @@ end
 desc 'Generate 10 million nodes with optimized approach'
 task :ten_million_nodes do
   require 'benchmark'
+  require 'logger'
   
-  # Configuration
-  total_nodes = 10_000_000
-  batch_size = 500_000
-  max_width = 1000  # Wider tree, less depth
-  
-  puts "Clearing existing data..."
-  DB[:birds].delete
-  DB[:nodes].delete
-  
-  puts "Temporarily disabling foreign key constraints..."
-  DB.run("ALTER TABLE nodes DISABLE TRIGGER ALL;")
-  
-  # Configure PostgreSQL for bulk loading
-  DB.run("SET maintenance_work_mem = '1GB';")
-  DB.run("SET synchronous_commit = 'off';")
-  
-  # Optimized approach: Generate tree with breadth-first pattern
-  # Root level
-  root_id = 1
-  DB[:nodes].insert(id: root_id, parent_id: nil)
-  
-  # Level 1 - Generate a wide array of direct children under root
-  puts "Generating level 1 nodes (direct children of root)..."
-  level1_count = [max_width, total_nodes - 1].min
-  level1_batch = []
-  
-  (2..(level1_count + 1)).each do |id|
-    level1_batch << {id: id, parent_id: root_id}
+  # Setup logging
+  logger = Logger.new(STDOUT)
+  logger.level = Logger::INFO
+  logger.formatter = proc do |severity, datetime, progname, msg|
+    "#{severity}: #{msg}\n"
   end
   
-  DB[:nodes].multi_insert(level1_batch)
-  puts "Created #{level1_count} nodes at level 1"
-  
-  # Level 2+ - Add children to each previous level's nodes
-  level = 2
-  current_id = level1_count + 2
-  remaining = total_nodes - level1_count - 1
-  
-  while remaining > 0
-    puts "Generating level #{level} nodes..."
+  begin
+    # Configuration
+    total_nodes = 10_000_000
+    batch_size = 500_000
+    max_width = 1000  # Wider tree, less depth
+    max_children_per_parent = 100  # Increased from 3 to 100
     
-    # Get parent IDs from previous level
-    previous_level_start = level == 2 ? 2 : current_id - remaining - batch_size
-    previous_level_end = level == 2 ? level1_count + 1 : current_id - 1
+    logger.info "Starting node generation for #{total_nodes} nodes"
+    logger.info "System resources:"
+    logger.info "  Database URL: #{ENV['DATABASE_URL']}"
+    logger.info "  Batch size: #{batch_size}"
+    logger.info "  Max width: #{max_width}"
+    logger.info "  Max children per parent: #{max_children_per_parent}"
     
-    parent_ids = DB[:nodes]
-      .where(id: previous_level_start..previous_level_end)
-      .select_map(:id)
-    
-    if parent_ids.empty?
-      puts "No more parents available at previous level"
-      break
+    # Check database connection
+    begin
+      DB.test_connection
+      logger.info "Database connection successful"
+    rescue => e
+      logger.error "Database connection failed: #{e.message}"
+      raise
     end
     
-    level_node_count = 0
-    parent_ids.each do |parent_id|
-      # Determine children count for this parent
-      children_per_parent = [3, remaining].min
-      break if children_per_parent <= 0
+    logger.info "Clearing existing data..."
+    begin
+      DB[:birds].delete
+      DB[:nodes].delete
+      logger.info "Existing data cleared successfully"
+    rescue => e
+      logger.error "Failed to clear existing data: #{e.message}"
+      raise
+    end
+    
+    logger.info "Temporarily disabling foreign key constraints..."
+    begin
+      DB.run("ALTER TABLE nodes DISABLE TRIGGER ALL;")
+      logger.info "Foreign key constraints disabled"
+    rescue => e
+      logger.error "Failed to disable foreign key constraints: #{e.message}"
+      raise
+    end
+    
+    # Configure PostgreSQL for bulk loading
+    begin
+      logger.info "Configuring PostgreSQL for bulk loading..."
+      DB.run("SET maintenance_work_mem = '1GB';")
+      DB.run("SET synchronous_commit = 'off';")
+      DB.run("SET work_mem = '256MB';")
+      logger.info "PostgreSQL configured successfully"
+    rescue => e
+      logger.error "Failed to configure PostgreSQL: #{e.message}"
+      raise
+    end
+    
+    # Start transaction for node generation
+    DB.transaction do
+      begin
+        # Root level
+        root_id = 1
+        logger.info "Creating root node..."
+        DB[:nodes].insert(id: root_id, parent_id: nil)
+        
+        # Level 1 - Generate a wide array of direct children under root
+        logger.info "Generating level 1 nodes (direct children of root)..."
+        level1_count = [max_width, total_nodes - 1].min
+        level1_batch = []
+        
+        (2..(level1_count + 1)).each do |id|
+          level1_batch << {id: id, parent_id: root_id}
+        end
+        
+        DB[:nodes].multi_insert(level1_batch)
+        logger.info "Created #{level1_count} nodes at level 1"
+        
+        # Level 2+ - Add children to each previous level's nodes
+        level = 2
+        current_id = level1_count + 2
+        remaining = total_nodes - level1_count - 1
+        
+        while remaining > 0
+          logger.info "Generating level #{level} nodes..."
+          
+          # Get parent IDs from previous level
+          previous_level_start = level == 2 ? 2 : current_id - remaining - batch_size
+          previous_level_end = level == 2 ? level1_count + 1 : current_id - 1
+          
+          begin
+            parent_ids = DB[:nodes]
+              .where(id: previous_level_start..previous_level_end)
+              .select_map(:id)
+            
+            if parent_ids.empty?
+              logger.warn "No more parents available at previous level"
+              break
+            end
+            
+            level_node_count = 0
+            parent_ids.each do |parent_id|
+              # Determine children count for this parent
+              children_per_parent = [max_children_per_parent, remaining].min
+              break if children_per_parent <= 0
+              
+              # Create batch for this parent
+              batch = []
+              children_per_parent.times do
+                batch << {id: current_id, parent_id: parent_id}
+                current_id += 1
+                remaining -= 1
+                level_node_count += 1
+                break if remaining <= 0
+              end
+              
+              begin
+                DB[:nodes].multi_insert(batch) unless batch.empty?
+              rescue => e
+                logger.error "Failed to insert batch at level #{level}: #{e.message}"
+                raise
+              end
+            end
+            
+            logger.info "Created #{level_node_count} nodes at level #{level}"
+            logger.info "Remaining: #{remaining}"
+            
+            level += 1
+          rescue => e
+            logger.error "Error at level #{level}: #{e.message}"
+            raise
+          end
+        end
+      rescue => e
+        logger.error "Transaction failed: #{e.message}"
+        raise
+      end
+    end
+    
+    # Re-enable foreign key constraints
+    logger.info "Re-enabling foreign key constraints..."
+    begin
+      DB.run("ALTER TABLE nodes ENABLE TRIGGER ALL;")
+      logger.info "Foreign key constraints re-enabled"
+    rescue => e
+      logger.error "Failed to re-enable foreign key constraints: #{e.message}"
+      raise
+    end
+    
+    # Reset PostgreSQL config
+    begin
+      DB.run("RESET maintenance_work_mem;")
+      DB.run("RESET synchronous_commit;")
+      DB.run("RESET work_mem;")
+      logger.info "PostgreSQL settings reset"
+    rescue => e
+      logger.error "Failed to reset PostgreSQL settings: #{e.message}"
+      raise
+    end
+    
+    # Create birds (5% of nodes)
+    begin
+      bird_count = (DB[:nodes].count * 0.05).to_i
+      logger.info "Creating #{bird_count} birds..."
       
-      # Create batch for this parent
-      batch = []
-      children_per_parent.times do
-        batch << {id: current_id, parent_id: parent_id}
-        current_id += 1
-        remaining -= 1
-        level_node_count += 1
-        break if remaining <= 0
+      batch_size = 500_000
+      remaining_birds = bird_count
+      
+      while remaining_birds > 0
+        batch_count = [batch_size, remaining_birds].min
+        
+        begin
+          node_sample = DB[:nodes].select(:id)
+            .order(Sequel.lit('RANDOM()'))
+            .limit(batch_count)
+            .select_map(:id)
+          
+          bird_batch = node_sample.map { |node_id| {node_id: node_id} }
+          DB[:birds].multi_insert(bird_batch)
+          
+          remaining_birds -= batch_count
+          logger.info "Created #{batch_count} birds. Remaining: #{remaining_birds}"
+        rescue => e
+          logger.error "Failed to create bird batch: #{e.message}"
+          raise
+        end
+      end
+    rescue => e
+      logger.error "Bird creation failed: #{e.message}"
+      raise
+    end
+    
+    # Final stats
+    begin
+      actual_nodes = DB[:nodes].count
+      actual_birds = DB[:birds].count
+      db_size = DB['SELECT pg_size_pretty(pg_database_size(current_database())) as size'].first[:size]
+      
+      logger.info "Final statistics:"
+      logger.info "Total nodes: #{actual_nodes}"
+      logger.info "Total birds: #{actual_birds}"
+      logger.info "Database size: #{db_size}"
+      
+      if actual_nodes < total_nodes
+        logger.warn "Generated fewer nodes than expected (#{actual_nodes} vs #{total_nodes})"
       end
       
-      DB[:nodes].multi_insert(batch) unless batch.empty?
+      # Report tree structure
+      level_counts = DB[<<~SQL].all
+        WITH RECURSIVE node_levels AS (
+          SELECT id, parent_id, 1 AS level
+          FROM nodes
+          WHERE parent_id IS NULL
+          
+          UNION ALL
+          
+          SELECT n.id, n.parent_id, nl.level + 1
+          FROM nodes n
+          JOIN node_levels nl ON n.parent_id = nl.id
+        )
+        SELECT level, COUNT(*) as count
+        FROM node_levels
+        GROUP BY level
+        ORDER BY level
+      SQL
+      
+      logger.info "\nTree structure:"
+      level_counts.each do |row|
+        logger.info "Level #{row[:level]}: #{row[:count]} nodes"
+      end
+      
+      logger.info "\nReady for performance and stress testing"
+    rescue => e
+      logger.error "Failed to generate final statistics: #{e.message}"
+      raise
     end
     
-    puts "Created #{level_node_count} nodes at level #{level}"
-    puts "Remaining: #{remaining}"
-    
-    level += 1
-    break if level > 5  # Limit depth for performance
+  rescue => e
+    logger.error "Task failed: #{e.message}"
+    logger.error e.backtrace.join("\n")
+    raise
   end
-  
-  # Re-enable foreign key constraints
-  puts "Re-enabling foreign key constraints..."
-  DB.run("ALTER TABLE nodes ENABLE TRIGGER ALL;")
-  
-  # Reset PostgreSQL config
-  DB.run("RESET maintenance_work_mem;")
-  DB.run("RESET synchronous_commit;")
-  
-  # Create birds (5% of nodes)
-  bird_count = (DB[:nodes].count * 0.05).to_i
-  puts "Creating #{bird_count} birds..."
-  
-  batch_size = 500_000
-  remaining_birds = bird_count
-  
-  while remaining_birds > 0
-    batch_count = [batch_size, remaining_birds].min
-    
-    node_sample = DB[:nodes].select(:id)
-      .order(Sequel.lit('RANDOM()'))
-      .limit(batch_count)
-      .select_map(:id)
-    
-    bird_batch = node_sample.map { |node_id| {node_id: node_id} }
-    DB[:birds].multi_insert(bird_batch)
-    
-    remaining_birds -= batch_count
-    puts "Created #{batch_count} birds. Remaining: #{remaining_birds}"
-  end
-  
-  # Final stats
-  actual_nodes = DB[:nodes].count
-  actual_birds = DB[:birds].count
-  
-  puts "Final statistics:"
-  puts "Total nodes: #{actual_nodes}"
-  puts "Total birds: #{actual_birds}"
-  puts "Database size: #{DB['SELECT pg_size_pretty(pg_database_size(current_database())) as size'].first[:size]}"
-  
-  # Report tree structure
-  level_counts = DB[<<~SQL].all
-    WITH RECURSIVE node_levels AS (
-      SELECT id, parent_id, 1 AS level
-      FROM nodes
-      WHERE parent_id IS NULL
-      
-      UNION ALL
-      
-      SELECT n.id, n.parent_id, nl.level + 1
-      FROM nodes n
-      JOIN node_levels nl ON n.parent_id = nl.id
-    )
-    SELECT level, COUNT(*) as count
-    FROM node_levels
-    GROUP BY level
-    ORDER BY level
-  SQL
-  
-  puts "\nTree structure:"
-  level_counts.each do |row|
-    puts "Level #{row[:level]}: #{row[:count]} nodes"
-  end
-  
-  puts "\nReady for performance and stress testing"
 end 

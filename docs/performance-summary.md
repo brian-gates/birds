@@ -28,23 +28,35 @@ To reproduce the performance tests described in this document, follow these step
 
 The repository includes several Rake tasks for generating test datasets:
 
-1. Small dataset (5 nodes):
+1. Small dataset (~100K nodes):
 
-   ```bash
-   docker compose exec api bundle exec rake db:seed
-   ```
-
-2. Medium dataset (~100K-250K nodes):
    ```bash
    docker compose exec api bundle exec rake small_performance_data
    ```
-3. Large dataset (~10M nodes):
+
+2. Medium dataset (~10M nodes):
 
    ```bash
    docker compose exec api bundle exec rake generate_expanded_dataset
    ```
 
-4. View the current node count:
+3. Large dataset (100M nodes):
+
+   ```bash
+   docker compose exec api bundle exec rake huge_performance_data
+   ```
+
+4. Additional data generation options:
+
+   ```bash
+   # Generate 10 million nodes with optimized approach
+   docker compose exec api bundle exec rake ten_million_nodes
+
+   # Generate large dataset for performance testing
+   docker compose exec api bundle exec rake generate_performance_data
+   ```
+
+5. View the current node count:
    ```bash
    docker compose exec db psql -U postgres -d birds -c "\pset pager off" -c "SELECT COUNT(*) FROM nodes"
    ```
